@@ -12,9 +12,41 @@ function Underlib:MakeWindow(options)
     
     -- Create main Frame
     self.MainFrame = Instance.new("Frame", self.Gui)
-    self.MainFrame.Size = UDim2.new(0, 400, 0, 600)
-    self.MainFrame.Position = UDim2.new(0.5, -200, 0.5, -300)
+    self.MainFrame.Size = UDim2.new(0, 300, 0, 400) -- Adjusted size for mobile
+    self.MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
     self.MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    
+    -- Make the window draggable
+    local Draggable = Instance.new("TextButton", self.MainFrame)
+    Draggable.Size = UDim2.new(1, 0, 0, 50)
+    Draggable.BackgroundTransparency = 1
+    Draggable.Text = ""
+
+    Draggable.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local start = input.Position
+            local startPos = self.MainFrame.Position
+
+            local function update(input)
+                local delta = input.Position - start
+                self.MainFrame.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+
+            local connection
+            connection = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    connection:Disconnect()
+                end
+            end)
+
+            game:GetService("UserInputService").InputChanged:Connect(update)
+        end
+    end)
     
     -- Add title
     local Title = Instance.new("TextLabel", self.MainFrame)
@@ -24,37 +56,87 @@ function Underlib:MakeWindow(options)
     Title.Text = options.Name or "Title"
     Title.Font = Enum.Font.SourceSans
     Title.TextSize = 24
+
+    -- Create Tabs container
+    self.TabsContainer = Instance.new("Frame", self.MainFrame)
+    self.TabsContainer.Size = UDim2.new(1, 0, 0, 50)
+    self.TabsContainer.Position = UDim2.new(0, 0, 0, 50)
+    self.TabsContainer.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    
+    -- Create Content container
+    self.ContentContainer = Instance.new("Frame", self.MainFrame)
+    self.ContentContainer.Size = UDim2.new(1, 0, 1, -100)
+    self.ContentContainer.Position = UDim2.new(0, 0, 0, 100)
+    self.ContentContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     
     -- Save configuration options
     self.HidePremium = options.HidePremium or false
     self.SaveConfig = options.SaveConfig or true
     self.ConfigFolder = options.ConfigFolder or "UnderlibConfig"
     
+    self.Tabs = {}
+    self.CurrentTab = nil
+
     print("Window Created with Title:", options.Name)
     
     return self
 end
 
-function Underlib:CreateTab(name)
-    local Tab = Instance.new("Frame", self.MainFrame)
-    Tab.Name = name
-    Tab.Size = UDim2.new(1, 0, 0, 50)
-    Tab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+function Underlib:MakeTab(options)
+    local tab = {}
 
-    local TabButton = Instance.new("TextButton", Tab)
-    TabButton.Size = UDim2.new(1, 0, 1, 0)
-    TabButton.Text = name
+    -- Create Tab Button
+    local TabButton = Instance.new("TextButton", self.TabsContainer)
+    TabButton.Size = UDim2.new(0, 100, 1, 0)
     TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabButton.Text = options.Name or "Tab"
+    TabButton.Font = Enum.Font.SourceSans
+    TabButton.TextSize = 18
+    TabButton.LayoutOrder = #self.Tabs + 1
 
-    return Tab
+    if options.Icon then
+        local Icon = Instance.new("ImageLabel", TabButton)
+        Icon.Size = UDim2.new(0, 20, 0, 20)
+        Icon.Position = UDim2.new(0, 5, 0.5, -10)
+        Icon.Image = options.Icon
+        Icon.BackgroundTransparency = 1
+    end
+
+    tab.Button = TabButton
+
+    -- Create Tab Content
+    local TabContent = Instance.new("Frame", self.ContentContainer)
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    TabContent.Visible = false
+
+    tab.Content = TabContent
+
+    -- Switch to this tab when clicked
+    TabButton.MouseButton1Click:Connect(function()
+        if self.CurrentTab then
+            self.CurrentTab.Content.Visible = false
+        end
+        TabContent.Visible = true
+        self.CurrentTab = tab
+    end)
+
+    table.insert(self.Tabs, tab)
+
+    if not self.CurrentTab then
+        self.CurrentTab = tab
+        TabContent.Visible = true
+    end
+
+    return tab
 end
 
 function Underlib:CreateSection(tab, name)
-    local Section = Instance.new("Frame", tab)
+    local Section = Instance.new("Frame", tab.Content)
     Section.Name = name
     Section.Size = UDim2.new(1, 0, 0, 100)
-    Section.Position = UDim2.new(0, 0, 0, 50)
+    Section.Position = UDim2.new(0, 0, 0, 0)
     Section.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     
     local SectionLabel = Instance.new("TextLabel", Section)
